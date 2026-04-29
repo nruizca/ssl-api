@@ -25,19 +25,19 @@ export default async function handler(req, res) {
       if (!cert || !cert.valid_from || !cert.valid_to) {
         socket.end();
         return res.status(500).json({
-          error: "No se pudo leer el certificado SSL"
+          error: "No se pudo leer el certificado SSL",
+          host: hostname
         });
       }
 
       // ================================
-      // 🔥 FECHAS (ISO 100% COMPATIBLE SHAREPOINT)
+      // 🔥 FECHAS (ISO PARA SHAREPOINT)
       // ================================
       const parseCertDate = (dateStr) => new Date(Date.parse(dateStr));
 
       const validFromDate = parseCertDate(cert.valid_from);
       const validToDate = parseCertDate(cert.valid_to);
 
-      // 👉 FORMATO PRO: ISO 8601 (OBLIGATORIO PARA SHAREPOINT)
       const validFrom = validFromDate.toISOString();
       const validTo = validToDate.toISOString();
 
@@ -66,10 +66,25 @@ export default async function handler(req, res) {
       });
     });
 
+    // ================================
+    // 🔥 TIMEOUT PRO (EVITA BLOQUEOS EN POWER AUTOMATE)
+    // ================================
+    socket.setTimeout(8000, () => {
+      socket.destroy();
+      return res.status(504).json({
+        error: "Timeout SSL (dominio lento)",
+        host: hostname
+      });
+    });
+
+    // ================================
+    // 🔥 ERROR HANDLER
+    // ================================
     socket.on("error", (err) => {
       return res.status(500).json({
         error: "Error conectando al SSL",
-        detail: err.message
+        detail: err.message,
+        host: hostname
       });
     });
 
