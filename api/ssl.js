@@ -30,23 +30,16 @@ export default async function handler(req, res) {
       }
 
       // ================================
-      // 🔥 FECHAS
+      // 🔥 FECHAS (ISO 100% COMPATIBLE SHAREPOINT)
       // ================================
       const parseCertDate = (dateStr) => new Date(Date.parse(dateStr));
 
       const validFromDate = parseCertDate(cert.valid_from);
       const validToDate = parseCertDate(cert.valid_to);
 
-      // formato dd/MM/yyyy
-      const formatDate = (date) => {
-        const d = String(date.getDate()).padStart(2, "0");
-        const m = String(date.getMonth() + 1).padStart(2, "0");
-        const y = date.getFullYear();
-        return `${d}/${m}/${y}`;
-      };
-
-      const validFrom = formatDate(validFromDate);
-      const validTo = formatDate(validToDate);
+      // 👉 FORMATO PRO: ISO 8601 (OBLIGATORIO PARA SHAREPOINT)
+      const validFrom = validFromDate.toISOString();
+      const validTo = validToDate.toISOString();
 
       // ================================
       // 🔥 DÍAS RESTANTES
