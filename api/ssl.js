@@ -10,7 +10,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // limpiar URL
     const hostname = new URL(url).hostname;
 
     const options = {
@@ -23,18 +22,37 @@ export default async function handler(req, res) {
     const socket = tls.connect(options, () => {
       const cert = socket.getPeerCertificate();
 
-      if (!cert || !cert.valid_from) {
+      if (!cert || !cert.valid_from || !cert.valid_to) {
+        socket.end();
         return res.status(500).json({
-          error: "No se pudo leer el certificado"
+          error: "No se pudo leer el certificado SSL"
         });
       }
 
-      const validFrom = cert.valid_from;
-      const validTo = cert.valid_to;
+      // ================================
+      // 🔥 FECHAS
+      // ================================
+      const parseCertDate = (dateStr) => new Date(Date.parse(dateStr));
 
-      const expireDate = new Date(validTo);
+      const validFromDate = parseCertDate(cert.valid_from);
+      const validToDate = parseCertDate(cert.valid_to);
+
+      // formato dd/MM/yyyy
+      const formatDate = (date) => {
+        const d = String(date.getDate()).padStart(2, "0");
+        const m = String(date.getMonth() + 1).padStart(2, "0");
+        const y = date.getFullYear();
+        return `${d}/${m}/${y}`;
+      };
+
+      const validFrom = formatDate(validFromDate);
+      const validTo = formatDate(validToDate);
+
+      // ================================
+      // 🔥 DÍAS RESTANTES
+      // ================================
       const now = new Date();
-      const diffTime = expireDate - now;
+      const diffTime = validToDate.getTime() - now.getTime();
       const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       socket.end();
@@ -43,7 +61,15 @@ export default async function handler(req, res) {
         host: hostname,
         valido_desde: validFrom,
         valido_hasta: validTo,
-        dias_restantes: daysLeft
+        dias_restantes: daysLeft,
+        estado:
+          daysLeft <= 0
+            ? "EXPIRADO"
+            : daysLeft <= 30
+            ? "CRITICO"
+            : daysLeft <= 60
+            ? "ADVERTENCIA"
+            : "OK"
       });
     });
 
